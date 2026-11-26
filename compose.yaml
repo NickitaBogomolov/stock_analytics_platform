@@ -1,0 +1,65 @@
+# Market Analytics: веб-приложение + PostgreSQL.
+#   Запуск:  docker compose up --build -d        →  http://localhost:8080
+#   Логи:    docker compose logs -f web
+#   Тесты:   docker compose --profile test run --rm tests
+#   Стоп:    docker compose down                  (данные БД сохраняются в томе pgdata)
+#   Сброс:   docker compose down -v               (удалить и том с данными)
+name: market-analytics
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: market
+      POSTGRES_USER: market
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-market}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./deploy/postgres:/docker-entrypoint-initdb.d:ro
+    ports:
+      # наружу только на localhost — для psql/DBeaver. По умолчанию 15432, а не 5432:
+      # 5432 часто занят локальным PostgreSQL или зарезервирован Windows (Hyper-V/WSL).
+      - "127.0.0.1:${DB_PORT:-15432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U market -d market"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      target: runtime
+    image: market-analytics:latest
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      MARKET_DB_URL: jdbc:postgresql://db:5432/market
+      MARKET_DB_USER: market
+      MARKET_DB_PASSWORD: ${DB_PASSWORD:-market}
+      JAVA_OPTS: "-Xmx256m"
+    ports:
+      - "${PORT:-8080}:8080"
+    volumes:
+      # демо-CSV импортируются в БД при старте, если такого тикера ещё нет
+      - ./data:/app/data:ro
+    restart: unless-stopped
+
+  tests:
+    profiles: ["test"]
+    build:
+      context: .
+      target: test
+    image: market-analytics:test
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      MARKET_TEST_DB_URL: jdbc:postgresql://db:5432/market_test
+      MARKET_TEST_DB_USER: market
+      MARKET_TEST_DB_PASSWORD: ${DB_PASSWORD:-market}
+
+volumes:
+  pgdata:

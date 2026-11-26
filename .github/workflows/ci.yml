@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: market_test
+          POSTGRES_USER: market
+          POSTGRES_PASSWORD: market
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U market"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure C++ core
+        run: cmake -S core-cpp -B core-cpp/build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build C++ core
+        run: cmake --build core-cpp/build -j
+
+      - name: Google Test
+        run: ctest --test-dir core-cpp/build --output-on-failure
+
+      - name: CLI smoke test
+        run: core-cpp/build/market_cli data/DEMO_TECH.csv --summary
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Kotlin tests (JUnit 5 + Kotest, C++/Kotlin parity, PostgreSQL integration)
+        working-directory: web-kotlin
+        env:
+          MARKET_TEST_DB_URL: jdbc:postgresql://localhost:5432/market_test
+          MARKET_TEST_DB_USER: market
+          MARKET_TEST_DB_PASSWORD: market
+        run: ./gradlew test --no-daemon
+
+      - name: Docker image builds
+        run: docker compose build web
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: web-kotlin/build/reports/tests/test

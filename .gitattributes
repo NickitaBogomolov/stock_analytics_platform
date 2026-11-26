@@ -1,0 +1,17 @@
+# Нормализация окончаний строк: скрипты, которые запускаются в Linux/Docker, всегда с LF,
+# даже если репозиторий клонирован на Windows с core.autocrlf=true.
+* text=auto
+gradlew text eol=lf
+*.sh text eol=lf
+Dockerfile text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.sql text eol=lf
+*.bat text eol=crlf
+
+# Двоичные файлы
+*.jar binary
+*.png binary
+*.jpg binary
+*.pptx binary
+*.zip binary
