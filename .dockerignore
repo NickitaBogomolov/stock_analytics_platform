@@ -1,0 +1,11 @@
+.git
+.github
+docs
+*.zip
+**/build
+**/.gradle
+**/.kotlin
+**/.idea
+**/.vscode
+**/*.iml
+**/__pycache__

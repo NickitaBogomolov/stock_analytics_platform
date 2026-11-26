@@ -1,0 +1,20 @@
+# C++
+core-cpp/build/
+build/
+cmake-build-*/
+# Kotlin / Gradle
+web-kotlin/.gradle/
+web-kotlin/build/
+.kotlin/
+# IDE / OS
+.idea/
+.vscode/
+*.iml
+.DS_Store
+# misc
+__pycache__/
+*.pyc
+docs/~$*
+
+# архив проекта для передачи
+*.zip
